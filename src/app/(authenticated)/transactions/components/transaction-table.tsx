@@ -6,7 +6,7 @@ import {
   CATEGORY_LABELS,
   PAYMENT_METHOD_LABELS,
 } from "@/types/transaction";
-import { formatCurrency, formatDateShort } from "@/lib/utils/format";
+import { formatCurrency, formatDateShort, parseDateOnly } from "@/lib/utils/format";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -51,7 +51,7 @@ export function TransactionTable({
 }: TransactionTableProps) {
   // Ordenar transações por data (mais recente primeiro)
   const sortedTransactions = [...transactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) => parseDateOnly(b.date).getTime() - parseDateOnly(a.date).getTime()
   );
 
   // Calcular paginação
@@ -62,8 +62,12 @@ export function TransactionTable({
 
 
   // Função para retornar o ícone baseado no método de pagamento
-  const getPaymentIcon = (paymentMethod: string) => {
+  const getPaymentIcon = (transaction: Transaction) => {
     const iconClass = "w-4 h-4";
+
+    if (transaction.recurringTransactionId) {
+      return <Repeat className={iconClass} />;
+    }
 
     const iconMap: Record<string, React.ReactElement> = {
       PIX: <CircleDollarSign className={iconClass} />,
@@ -73,7 +77,7 @@ export function TransactionTable({
       DINHEIRO: <Wallet className={iconClass} />,
     };
 
-    return iconMap[paymentMethod] || <MoreHorizontal className={iconClass} />;
+    return iconMap[transaction.paymentMethod] || <MoreHorizontal className={iconClass} />;
   };
 
   // Função para retornar a cor do ícone baseado no tipo (sem fundo)
@@ -154,7 +158,7 @@ export function TransactionTable({
               <TableCell className="font-medium text-gray dark:text-white">
                 <div className="flex items-center gap-3">
                   <div className={getIconColor(transaction.type)}>
-                    {getPaymentIcon(transaction.paymentMethod)}
+                    {getPaymentIcon(transaction)}
                   </div>
                   <div className="flex flex-col gap-1">
                     <span>{transaction.description}</span>
@@ -181,7 +185,9 @@ export function TransactionTable({
                   : "-"}
               </TableCell>
               <TableCell className="text-gray dark:text-light-gray">
-                {PAYMENT_METHOD_LABELS[transaction.paymentMethod]}
+                {transaction.recurringTransactionId
+                  ? "Fixa"
+                  : PAYMENT_METHOD_LABELS[transaction.paymentMethod]}
               </TableCell>
               <TableCell className="text-gray dark:text-light-gray">
                 {formatDateShort(transaction.date)}
@@ -206,19 +212,17 @@ export function TransactionTable({
                       onSubmit={(data) => onUpdate(transaction.id, data)}
                     />
                   )}
-                  {!transaction.recurringTransactionId && (
-                    <DeleteDialog
-                      transactionId={transaction.id}
-                      transactionDescription={transaction.description}
-                      onDelete={onDelete}
-                      onSuccess={onRefresh}
-                    />
-                  )}
                   {transaction.recurringTransactionId && (
                     <span className="text-xs text-gray-400 dark:text-gray-500 italic">
                       Gerada automaticamente
                     </span>
                   )}
+                  <DeleteDialog
+                    transactionId={transaction.id}
+                    transactionDescription={transaction.description}
+                    onDelete={onDelete}
+                    onSuccess={onRefresh}
+                  />
                 </div>
               </TableCell>
             </TableRow>
@@ -239,4 +243,3 @@ export function TransactionTable({
     </div>
   );
 }
-

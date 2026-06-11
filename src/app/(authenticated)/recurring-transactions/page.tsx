@@ -13,7 +13,7 @@ import {
   DAY_OF_WEEK_LABELS,
   CreateRecurringTransactionData,
 } from "@/types/recurring-transaction";
-import { formatCurrency, centsToReais, getTodayISO } from "@/lib/utils/format";
+import { formatCurrency, centsToReais, getTodayISO, formatDateShort } from "@/lib/utils/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,30 @@ import {
 import { Plus, Power, Trash2, Repeat, DollarSign, Calendar, FileText, Tag, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+type RecurringTypeFilter = "ALL" | RecurringTransaction["type"];
+
+const recurringTypeFilters: Array<{
+  value: RecurringTypeFilter;
+  label: string;
+}> = [
+  { value: "ALL", label: "Todas" },
+  { value: "INCOME", label: "Receitas" },
+  { value: "INVESTMENT", label: "Investimentos" },
+  { value: "EXPENSE", label: "Despesas" },
+];
+
+const recurringTypeOrder: Record<RecurringTransaction["type"], number> = {
+  INCOME: 0,
+  INVESTMENT: 1,
+  EXPENSE: 2,
+};
+
 export default function RecurringTransactionsPage() {
   const [transactions, setTransactions] = useState<RecurringTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [amountDisplay, setAmountDisplay] = useState("");
+  const [typeFilter, setTypeFilter] = useState<RecurringTypeFilter>("ALL");
   const [formData, setFormData] = useState<CreateRecurringTransactionData>({
     type: "EXPENSE",
     category: "ALIMENTACAO",
@@ -69,8 +89,28 @@ export default function RecurringTransactionsPage() {
     }
   };
 
+  const handleAmountChange = (value: string) => {
+    const numbersOnly = value.replace(/\D/g, "");
+
+    if (!numbersOnly) {
+      setAmountDisplay("");
+      setFormData({ ...formData, amount: 0 });
+      return;
+    }
+
+    const amount = parseInt(numbersOnly, 10) / 100;
+    const formatted = amount.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    setAmountDisplay(formatted);
+    setFormData({ ...formData, amount });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const today = getTodayISO();
 
     // Validar amount
     if (!formData.amount || formData.amount <= 0 || isNaN(formData.amount)) {
@@ -88,9 +128,34 @@ export default function RecurringTransactionsPage() {
       return;
     }
 
+    if (
+      formData.frequency === "MONTHLY" &&
+      formData.dayOfMonth &&
+      (formData.dayOfMonth < 1 || formData.dayOfMonth > 28)
+    ) {
+      toast.warning("Dia do mês inválido", {
+        description: "Escolha um dia entre 1 e 28 para evitar meses sem esse dia"
+      });
+      return;
+    }
+
     if (formData.frequency === "WEEKLY" && formData.dayOfWeek === undefined) {
       toast.warning("Campo obrigatório", {
         description: "Selecione o dia da semana para transações semanais"
+      });
+      return;
+    }
+
+    if (formData.startDate < today) {
+      toast.warning("Data de início inválida", {
+        description: "A data de início não pode ser anterior a hoje"
+      });
+      return;
+    }
+
+    if (formData.endDate && formData.endDate <= formData.startDate) {
+      toast.warning("Data de fim inválida", {
+        description: "A data de fim deve ser posterior à data de início"
       });
       return;
     }
@@ -119,6 +184,7 @@ export default function RecurringTransactionsPage() {
         frequency: "MONTHLY",
         startDate: getTodayISO(),
       });
+      setAmountDisplay("");
     } catch (error) {
       console.error('Erro completo:', error);
       toast.error("Erro ao criar transação fixa", {
@@ -181,6 +247,20 @@ export default function RecurringTransactionsPage() {
         return "";
     }
   };
+
+  const displayedTransactions = [...transactions]
+    .filter((transaction) =>
+      typeFilter === "ALL" ? true : transaction.type === typeFilter
+    )
+    .sort((a, b) => {
+      const typeDiff = recurringTypeOrder[a.type] - recurringTypeOrder[b.type];
+
+      if (typeDiff !== 0) {
+        return typeDiff;
+      }
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -270,21 +350,23 @@ export default function RecurringTransactionsPage() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
-                    <span>Valor (R$)</span>
+                    <span>Valor</span>
                     <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={formData.amount || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="0,00"
-                    className="h-11 text-lg font-semibold"
-                    required
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-900 dark:text-white font-semibold">
+                      R$
+                    </span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={amountDisplay}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      placeholder="0,00"
+                      className="h-11 pl-12 text-lg font-semibold"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -343,7 +425,7 @@ export default function RecurringTransactionsPage() {
                     <Input
                       type="number"
                       min="1"
-                      max="31"
+                      max="28"
                       value={formData.dayOfMonth || ""}
                       onChange={(e) =>
                         setFormData({
@@ -356,7 +438,7 @@ export default function RecurringTransactionsPage() {
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Escolha um dia entre 1 e 31
+                      Escolha um dia entre 1 e 28
                     </p>
                   </div>
                 )}
@@ -406,6 +488,7 @@ export default function RecurringTransactionsPage() {
                     <Input
                       type="date"
                       value={formData.startDate}
+                      min={getTodayISO()}
                       onChange={(e) =>
                         setFormData({ ...formData, startDate: e.target.value })
                       }
@@ -419,6 +502,7 @@ export default function RecurringTransactionsPage() {
                     <Input
                       type="date"
                       value={formData.endDate || ""}
+                      min={formData.startDate || getTodayISO()}
                       onChange={(e) =>
                         setFormData({ ...formData, endDate: e.target.value || undefined })
                       }
@@ -455,11 +539,37 @@ export default function RecurringTransactionsPage() {
         </Dialog>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {recurringTypeFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setTypeFilter(filter.value)}
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                typeFilter === filter.value
+                  ? "border-green bg-green text-white"
+                  : "border-gray-200 dark:border-dark-gray bg-white dark:bg-background-02 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-dark-gray"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {transactions.length > 0 && (
+          <p className="text-sm text-gray-500">
+            Total: <span className="font-medium">{displayedTransactions.length}</span>{" "}
+            {displayedTransactions.length === 1 ? "fixa" : "fixas"}
+          </p>
+        )}
+      </div>
+
       {isLoading ? (
         <Card className="p-6">
           <p>Carregando...</p>
         </Card>
-      ) : transactions.length === 0 ? (
+      ) : displayedTransactions.length === 0 ? (
         <Card className="p-6">
           <p className="text-gray-500 text-center">
             Nenhuma transação fixa cadastrada
@@ -467,7 +577,7 @@ export default function RecurringTransactionsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {transactions.map((transaction) => (
+          {displayedTransactions.map((transaction) => (
             <Card key={transaction.id} className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -517,11 +627,11 @@ export default function RecurringTransactionsPage() {
                   )}
                   <p>
                     Início:{" "}
-                    {new Date(transaction.startDate).toLocaleDateString("pt-BR")}
+                    {formatDateShort(transaction.startDate)}
                   </p>
                   {transaction.endDate && (
                     <p>
-                      Fim: {new Date(transaction.endDate).toLocaleDateString("pt-BR")}
+                      Fim: {formatDateShort(transaction.endDate)}
                     </p>
                   )}
                   <p className={transaction.active ? "text-green" : "text-red-500"}>

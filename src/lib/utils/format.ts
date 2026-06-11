@@ -14,7 +14,7 @@ export function formatCurrency(reais: number): string {
 }
 
 export function formatDate(isoDate: string): string {
-  const date = new Date(isoDate);
+  const date = parseDateOnly(isoDate);
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -23,8 +23,19 @@ export function formatDate(isoDate: string): string {
 }
 
 export function formatDateShort(isoDate: string): string {
-  const date = new Date(isoDate);
+  const date = parseDateOnly(isoDate);
   return new Intl.DateTimeFormat("pt-BR").format(date);
+}
+
+export function parseDateOnly(dateString: string): Date {
+  const dateOnly = dateString.split("T")[0];
+  const [year, month, day] = dateOnly.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return new Date(dateString);
+  }
+
+  return new Date(year, month - 1, day);
 }
 
 export function dateToISO(date: Date): string {
@@ -48,4 +59,3 @@ export function isValidISODate(dateString: string): boolean {
   const date = new Date(dateString);
   return date instanceof Date && !isNaN(date.getTime());
 }
-

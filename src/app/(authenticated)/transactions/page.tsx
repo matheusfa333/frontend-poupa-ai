@@ -16,16 +16,33 @@ import {
   updateTransaction,
 } from "@/lib/api/transaction";
 
+type TransactionTypeFilter = "ALL" | Transaction["type"];
+
+const transactionTypeFilters: Array<{
+  value: TransactionTypeFilter;
+  label: string;
+}> = [
+  { value: "ALL", label: "Todas" },
+  { value: "INCOME", label: "Receitas" },
+  { value: "EXPENSE", label: "Despesas" },
+  { value: "INVESTMENT", label: "Investimentos" },
+];
+
 export default function TransactionsPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>("ALL");
   
   // Estados de paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  const filteredTransactions =
+    typeFilter === "ALL"
+      ? transactions
+      : transactions.filter((transaction) => transaction.type === typeFilter);
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -107,6 +124,26 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2 mb-4">
+        {transactionTypeFilters.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            onClick={() => {
+              setTypeFilter(filter.value);
+              setCurrentPage(1);
+            }}
+            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+              typeFilter === filter.value
+                ? "border-green bg-green text-white"
+                : "border-gray-200 dark:border-dark-gray bg-white dark:bg-background-02 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-dark-gray"
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filtros e controles */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -135,8 +172,8 @@ export default function TransactionsPage() {
         
         {transactions.length > 0 && (
           <p className="text-sm text-gray dark:text-light-gray">
-            Total: <span className="font-medium">{transactions.length}</span>{" "}
-            {transactions.length === 1 ? "transação" : "transações"}
+            Total: <span className="font-medium">{filteredTransactions.length}</span>{" "}
+            {filteredTransactions.length === 1 ? "transação" : "transações"}
           </p>
         )}
       </div>
@@ -154,7 +191,7 @@ export default function TransactionsPage() {
 
       {/* Tabela de Transações */}
       <TransactionTable
-        transactions={transactions}
+        transactions={filteredTransactions}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
         onRefresh={loadTransactions}
@@ -165,4 +202,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-

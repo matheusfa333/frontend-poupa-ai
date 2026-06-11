@@ -8,7 +8,7 @@ import type {
   CategoryExpense,
 } from "@/types/transaction";
 import { CATEGORY_LABELS } from "@/types/transaction";
-import { formatCurrency, formatDateShort } from "@/lib/utils/format";
+import { formatCurrency, formatDateShort, parseDateOnly } from "@/lib/utils/format";
 import {
   Wallet,
   TrendingUp,
@@ -26,6 +26,8 @@ import type { CreateTransactionData } from "@/lib/validator/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
+const BALANCE_VISIBILITY_STORAGE_KEY = "poupa-ai-show-balance";
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(
@@ -36,7 +38,13 @@ export default function DashboardPage() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showBalance, setShowBalance] = useState(false); // Saldo oculto por padrão
+  const [showBalance, setShowBalance] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(BALANCE_VISIBILITY_STORAGE_KEY) === "true";
+  });
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
 
   // Estado para o mês/ano selecionado
@@ -63,8 +71,12 @@ export default function DashboardPage() {
   ];
 
   // Função para retornar o ícone baseado no método de pagamento
-  const getPaymentIcon = (paymentMethod: string) => {
+  const getPaymentIcon = (transaction: Transaction) => {
     const iconClass = "w-5 h-5";
+
+    if (transaction.recurringTransactionId) {
+      return <RefreshCw className={iconClass} />;
+    }
 
     // Mapeamento de métodos de pagamento para ícones
     const iconMap: Record<string, React.ReactElement> = {
@@ -75,7 +87,7 @@ export default function DashboardPage() {
       DINHEIRO: <Wallet className={iconClass} />,
     };
 
-    return iconMap[paymentMethod] || <MoreHorizontal className={iconClass} />;
+    return iconMap[transaction.paymentMethod] || <MoreHorizontal className={iconClass} />;
   };
 
   // Função para retornar a cor do ícone baseado no tipo (sem fundo)
@@ -101,7 +113,7 @@ export default function DashboardPage() {
   // Função para filtrar transações por mês/ano
   const filterTransactionsByMonth = (transactions: Transaction[]) => {
     return transactions.filter((transaction) => {
-      const transactionDate = new Date(transaction.date);
+      const transactionDate = parseDateOnly(transaction.date);
       return (
         transactionDate.getMonth() + 1 === selectedMonth &&
         transactionDate.getFullYear() === selectedYear
@@ -181,7 +193,7 @@ export default function DashboardPage() {
 
       // Obter as 5 transações mais recentes do mês
       const sortedTransactions = [...filteredTransactions].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => parseDateOnly(b.date).getTime() - parseDateOnly(a.date).getTime()
       );
       setRecentTransactions(sortedTransactions.slice(0, 5));
 
@@ -221,7 +233,13 @@ export default function DashboardPage() {
 
   // Função para alternar visibilidade do saldo
   const toggleBalanceVisibility = () => {
-    setShowBalance(!showBalance);
+    const nextShowBalance = !showBalance;
+
+    setShowBalance(nextShowBalance);
+    window.localStorage.setItem(
+      BALANCE_VISIBILITY_STORAGE_KEY,
+      String(nextShowBalance),
+    );
   };
 
   if (isLoading) {
@@ -619,7 +637,7 @@ export default function DashboardPage() {
                     >
                       {/* Ícone do método de pagamento */}
                       <div className={getIconColor(transaction.type)}>
-                        {getPaymentIcon(transaction.paymentMethod)}
+                        {getPaymentIcon(transaction)}
                       </div>
 
                       {/* Descrição e data */}
@@ -656,4 +674,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

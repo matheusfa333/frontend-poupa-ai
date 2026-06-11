@@ -66,7 +66,7 @@ export function RegisterForm() {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { confirmPassword, ...registerData } = data;
+      const { confirmPassword, acceptTerms, ...registerData } = data;
 
       const response = await fetch(
         `${API_BASE_URL}/users`,
@@ -351,4 +351,3 @@ export function RegisterForm() {
     </div>
   );
 }
-

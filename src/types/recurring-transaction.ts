@@ -13,7 +13,7 @@ export interface RecurringTransaction {
   frequency: RecurrenceFrequency;
   startDate: string; // ISO string
   endDate: string | null; // ISO string
-  dayOfMonth: number | null; // 1-31 para MONTHLY
+  dayOfMonth: number | null; // 1-28 para MONTHLY
   dayOfWeek: number | null; // 0-6 para WEEKLY
   active: boolean;
   lastProcessed: string | null;
