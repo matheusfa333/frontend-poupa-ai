@@ -26,6 +26,7 @@ import {
   type WhatsAppFormData,
 } from "@/lib/validator/profile";
 import { updateProfile, changePassword, generateWhatsAppLinkCode, getWhatsAppStatus, linkWhatsApp, unlinkWhatsApp } from "@/lib/api/profile";
+import { maskWhatsAppNumber } from "@/lib/utils";
 
 interface ProfileSettingsDialogProps {
   open: boolean;
@@ -482,8 +483,14 @@ export function ProfileSettingsDialog({
                       <Label htmlFor="whatsappPhone">Número do WhatsApp</Label>
                       <Input
                         id="whatsappPhone"
-                        {...whatsappForm.register("phoneNumber")}
-                        placeholder="55 (34) 7633-8889 ou 5534976338889"
+                        inputMode="numeric"
+                        value={whatsappForm.watch("phoneNumber")}
+                        onChange={(e) =>
+                          whatsappForm.setValue("phoneNumber", maskWhatsAppNumber(e.target.value), {
+                            shouldValidate: true,
+                          })
+                        }
+                        placeholder="+55 (34) 99763-3889"
                         disabled={!!whatsappLinkCode}
                       />
                       {whatsappForm.formState.errors.phoneNumber && (
@@ -492,7 +499,7 @@ export function ProfileSettingsDialog({
                         </p>
                       )}
                       <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Digite: 55 + DDD + 8 dígitos (12 dígitos no total). Ex: 5534976338889
+                        Digite com DDD e o 9 na frente do número, ex: +55 (34) 99763-3889
                       </p>
                     </div>
 

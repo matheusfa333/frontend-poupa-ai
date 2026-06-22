@@ -42,12 +42,12 @@ export const whatsappSchema = z.object({
     .min(1, "O número do WhatsApp é obrigatório")
     .transform((val) => val.replace(/\D/g, "")) // Remove caracteres não numéricos primeiro
     .refine(
-      (val) => val.length === 12,
-      "O número deve ter exatamente 12 dígitos no formato: 553497633889"
+      (val) => val.length === 12 || val.length === 13,
+      "O número deve ter 12 ou 13 dígitos no formato: 5534997633889"
     )
     .refine(
-      (val) => /^55[1-9][0-9]\d{8}$/.test(val),
-      "Formato inválido. Use: 55 + DDD + 8 dígitos do número (ex: 553497633889)"
+      (val) => /^55[1-9][0-9]9?\d{8}$/.test(val),
+      "Formato inválido. Use: 55 + DDD + (9) + 8 dígitos do número (ex: 5534997633889)"
     ),
 });
 

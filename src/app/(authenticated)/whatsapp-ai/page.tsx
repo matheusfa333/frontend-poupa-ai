@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { whatsappSchema, type WhatsAppFormData } from "@/lib/validator/profile";
 import { getWhatsAppStatus, linkWhatsApp, unlinkWhatsApp } from "@/lib/api/profile";
+import { maskWhatsAppNumber } from "@/lib/utils";
 
 const BOT_NUMBER_DISPLAY = "+55 34 99668-8345";
 const BOT_NUMBER_RAW = "5534996688345";
@@ -136,8 +137,14 @@ export default function WhatsappAiPage() {
                   <Label htmlFor="phoneNumber">Seu número de WhatsApp</Label>
                   <Input
                     id="phoneNumber"
-                    {...form.register("phoneNumber")}
-                    placeholder="55 34 99763-3889 ou 5534997633889"
+                    inputMode="numeric"
+                    value={form.watch("phoneNumber")}
+                    onChange={(e) =>
+                      form.setValue("phoneNumber", maskWhatsAppNumber(e.target.value), {
+                        shouldValidate: true,
+                      })
+                    }
+                    placeholder="+55 (34) 99763-3889"
                   />
                   {form.formState.errors.phoneNumber && (
                     <p className="text-sm text-red-600 dark:text-red-400">
@@ -145,7 +152,7 @@ export default function WhatsappAiPage() {
                     </p>
                   )}
                   <p className="text-xs text-gray-500">
-                    Digite 55 + DDD + número (12 dígitos). Ex: 5534997633889
+                    Digite com DDD e o 9 na frente do número, ex: +55 (34) 99763-3889
                   </p>
                 </div>
                 <Button type="submit" className="w-full h-12 bg-green hover:bg-green/90 text-white" disabled={isLoading}>
